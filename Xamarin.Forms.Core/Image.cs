@@ -21,6 +21,14 @@ namespace Xamarin.Forms
 
 		public static readonly BindableProperty IsLoadingProperty = IsLoadingPropertyKey.BindableProperty;
 
+		public enum ImagePlayBehavior
+		{
+			None,
+			OnLoad
+		};
+
+		public static readonly BindableProperty AnimationPlayBehaviorProperty = BindableProperty.Create(nameof(AnimationPlayBehavior), typeof(ImagePlayBehavior, typeof(Image), ImagePlayBehavior.None));
+
 		readonly Lazy<PlatformConfigurationRegistry<Image>> _platformConfigurationRegistry;
 
 		public Image()
@@ -50,6 +58,22 @@ namespace Xamarin.Forms
 		{
 			get { return (ImageSource)GetValue(SourceProperty); }
 			set { SetValue(SourceProperty, value); }
+		}
+
+		public string AnimationPlayBehavior
+		{
+			get { return (string)GetValue(AnimationPlayBehaviorProperty); }
+			set { SetValue(AnimationPlayBehaviorProperty, value); }
+		}
+
+		public void StartAnimation()
+		{
+			;
+		}
+
+		public void StopAnimation()
+		{
+			;
 		}
 
 		protected override void OnBindingContextChanged()
