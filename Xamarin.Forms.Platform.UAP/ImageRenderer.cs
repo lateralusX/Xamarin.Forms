@@ -13,6 +13,17 @@ namespace Xamarin.Forms.Platform.UWP
 		bool _measured;
 		bool _disposed;
 
+		static bool _nativeAnimationSupport = false;
+
+		static ImageRenderer()
+		{
+			if (Windows.Foundation.Metadata.ApiInformation.IsPropertyPresent ("Windows.UI.Xaml.Media.Imaging.BitmapImage", "AutoPlay"))
+				if (Windows.Foundation.Metadata.ApiInformation.IsPropertyPresent ("Windows.UI.Xaml.Media.Imaging.BitmapImage", "IsPlaying"))
+					if (Windows.Foundation.Metadata.ApiInformation.IsMethodPresent ("Windows.UI.Xaml.Media.Imaging.BitmapImage", "Play"))
+						if (Windows.Foundation.Metadata.ApiInformation.IsMethodPresent ("Windows.UI.Xaml.Media.Imaging.BitmapImage", "Stop"))
+							_nativeAnimationSupport = true;
+			}
+
 		public override SizeRequest GetDesiredSize(double widthConstraint, double heightConstraint)
 		{
 			if (Control.Source == null)
@@ -73,6 +84,20 @@ namespace Xamarin.Forms.Platform.UWP
 				await TryUpdateSource();
 			else if (e.PropertyName == Image.AspectProperty.PropertyName)
 				UpdateAspect();
+			else if (e.PropertyName == Image.IsAnimationPlayingProperty.PropertyName)
+			{
+				if (Control.Source is BitmapImage bitmapImage)
+				{
+					if (_nativeAnimationSupport)
+					{
+						if (Element.IsAnimationPlaying && !bitmapImage.IsPlaying)
+							bitmapImage.Play();
+						else if (!Element.IsAnimationPlaying && bitmapImage.IsPlaying)
+							bitmapImage.Stop();
+					}
+				}
+			}
+
 		}
 
 		static Stretch GetStretch(Aspect aspect)
@@ -91,6 +116,12 @@ namespace Xamarin.Forms.Platform.UWP
 
 		void OnImageOpened(object sender, RoutedEventArgs routedEventArgs)
 		{
+			if (Element.IsSet (Image.AnimationPlayBehaviorProperty))
+			{
+				if ((Image.ImagePlayBehavior)Element.GetValue (Image.AnimationPlayBehaviorProperty) == Image.ImagePlayBehavior.OnLoad)
+					Element.StartAnimation();
+			}
+
 			if (_measured)
 			{
 				RefreshImage();
@@ -178,6 +209,12 @@ namespace Xamarin.Forms.Platform.UWP
 				// might have disposed of this Image already.
 				if (Control != null)
 				{
+					if (imagesource is BitmapImage bitmapImage)
+					{
+						if (_nativeAnimationSupport)
+							bitmapImage.AutoPlay = false;
+					}
+
 					Control.Source = imagesource;
 				}
 
