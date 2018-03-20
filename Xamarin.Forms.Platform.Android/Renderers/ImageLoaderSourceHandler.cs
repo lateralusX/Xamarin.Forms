@@ -16,7 +16,7 @@ namespace Xamarin.Forms.Platform.Android
 			if (imageLoader?.Uri != null)
 			{
 				using (Stream imageStream = await imageLoader.GetStreamAsync(cancelationToken).ConfigureAwait(false))
-					bitmap =  await BitmapFactory.DecodeStreamAsync(imageStream).ConfigureAwait(false);
+					bitmap = await BitmapFactory.DecodeStreamAsync(imageStream).ConfigureAwait(false);
 			}
 
 			if (bitmap == null)
