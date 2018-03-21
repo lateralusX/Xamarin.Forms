@@ -18,7 +18,6 @@ namespace Xamarin.Forms.Platform.Android
 	public class ImageRenderer : ViewRenderer<Image, AImageView>
 	{
 		bool _isDisposed;
-		AnimationDrawable _imageAnimation = null;
 		readonly MotionEventHelper _motionEventHelper = new MotionEventHelper();
 
 		public ImageRenderer(Context context) : base(context)
@@ -37,11 +36,8 @@ namespace Xamarin.Forms.Platform.Android
 			if (_isDisposed)
 				return;
 
-			if (_imageAnimation != null)
-			{
-				_imageAnimation.Dispose();
-				_imageAnimation = null;
-			}
+			if (Control != null)
+				Control.Reset();
 
 			_isDisposed = true;
 
@@ -120,23 +116,7 @@ namespace Xamarin.Forms.Platform.Android
 				return;
 			}
 
-			if (!Element.IsSet(Image.AnimationPlayBehaviorProperty) && !Element.IsSet(Image.IsAnimationPlayingProperty))
-			{
-				await Control.UpdateBitmap(Element, previous);
-			}
-			else
-			{
-				var newAnimation = await Control.UpdateAnimation(Element, previous);
-				if (newAnimation != null)
-				{
-					_imageAnimation?.Dispose();
-					_imageAnimation = null;
-
-					_imageAnimation = newAnimation;
-					if (_imageAnimation != null && (Image.ImagePlayBehavior)Element.GetValue(Image.AnimationPlayBehaviorProperty) == Image.ImagePlayBehavior.OnLoad)
-						_imageAnimation.Start();
-				}
-			}
+			await Control.UpdateBitmap(Element, previous);
 		}
 
 		public override bool OnTouchEvent(MotionEvent e)
@@ -149,7 +129,7 @@ namespace Xamarin.Forms.Platform.Android
 
 		void StartStopAnimation()
 		{
-			if (_isDisposed || Element == null || Control == null || _imageAnimation == null)
+			if (_isDisposed || Element == null || Control == null)
 			{
 				return;
 			}
@@ -157,10 +137,13 @@ namespace Xamarin.Forms.Platform.Android
 			if (Element.IsLoading)
 				return;
 
-			if (Element.IsAnimationPlaying && !_imageAnimation.IsRunning)
-				_imageAnimation.Start();
-			else if (!Element.IsAnimationPlaying && _imageAnimation.IsRunning)
-				_imageAnimation.Stop();
+			if (Control.Drawable is AnimationDrawable animation)
+			{
+				if (Element.IsAnimationPlaying && !animation.IsRunning)
+					animation.Start();
+				else if (!Element.IsAnimationPlaying && animation.IsRunning)
+					animation.Stop();
+			}
 		}
 	}
 }

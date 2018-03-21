@@ -17,12 +17,12 @@ namespace Xamarin.Forms.Platform.UWP
 
 		static ImageRenderer()
 		{
-			if (Windows.Foundation.Metadata.ApiInformation.IsPropertyPresent ("Windows.UI.Xaml.Media.Imaging.BitmapImage", "AutoPlay"))
-				if (Windows.Foundation.Metadata.ApiInformation.IsPropertyPresent ("Windows.UI.Xaml.Media.Imaging.BitmapImage", "IsPlaying"))
-					if (Windows.Foundation.Metadata.ApiInformation.IsMethodPresent ("Windows.UI.Xaml.Media.Imaging.BitmapImage", "Play"))
-						if (Windows.Foundation.Metadata.ApiInformation.IsMethodPresent ("Windows.UI.Xaml.Media.Imaging.BitmapImage", "Stop"))
+			if (Windows.Foundation.Metadata.ApiInformation.IsPropertyPresent("Windows.UI.Xaml.Media.Imaging.BitmapImage", "AutoPlay"))
+				if (Windows.Foundation.Metadata.ApiInformation.IsPropertyPresent("Windows.UI.Xaml.Media.Imaging.BitmapImage", "IsPlaying"))
+					if (Windows.Foundation.Metadata.ApiInformation.IsMethodPresent("Windows.UI.Xaml.Media.Imaging.BitmapImage", "Play"))
+						if (Windows.Foundation.Metadata.ApiInformation.IsMethodPresent("Windows.UI.Xaml.Media.Imaging.BitmapImage", "Stop"))
 							_nativeAnimationSupport = true;
-			}
+		}
 
 		public override SizeRequest GetDesiredSize(double widthConstraint, double heightConstraint)
 		{
@@ -116,9 +116,9 @@ namespace Xamarin.Forms.Platform.UWP
 
 		void OnImageOpened(object sender, RoutedEventArgs routedEventArgs)
 		{
-			if (Element.IsSet (Image.AnimationPlayBehaviorProperty))
+			if (Element.IsSet(Image.AnimationPlayBehaviorProperty))
 			{
-				if ((Image.ImagePlayBehavior)Element.GetValue (Image.AnimationPlayBehaviorProperty) == Image.ImagePlayBehavior.OnLoad)
+				if ((Image.ImagePlayBehavior)Element.GetValue(Image.AnimationPlayBehaviorProperty) == Image.ImagePlayBehavior.OnLoad)
 					Element.StartAnimation();
 			}
 
@@ -132,7 +132,7 @@ namespace Xamarin.Forms.Platform.UWP
 
 		protected virtual void OnImageFailed(object sender, ExceptionRoutedEventArgs exceptionRoutedEventArgs)
 		{
-			Log.Warning("Image Loading", $"Image failed to load: {exceptionRoutedEventArgs.ErrorMessage}" );
+			Log.Warning("Image Loading", $"Image failed to load: {exceptionRoutedEventArgs.ErrorMessage}");
 			Element?.SetIsLoading(false);
 		}
 
@@ -174,8 +174,7 @@ namespace Xamarin.Forms.Platform.UWP
 			catch (Exception ex)
 			{
 				Log.Warning(nameof(ImageRenderer), "Error loading image: {0}", ex);
-			}
-			finally
+			} finally
 			{
 				((IImageController)Element)?.SetIsLoading(false);
 			}

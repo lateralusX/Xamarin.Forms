@@ -83,25 +83,25 @@ namespace Xamarin.Forms.Platform.iOS
 
 		protected override async void OnElementPropertyChanged(object sender, PropertyChangedEventArgs e)
 		{
-			base.OnElementPropertyChanged (sender, e);
+			base.OnElementPropertyChanged(sender, e);
 			if (e.PropertyName == Image.SourceProperty.PropertyName)
-				await TrySetImage ();
+				await TrySetImage();
 			else if (e.PropertyName == Image.IsOpaqueProperty.PropertyName)
-				SetOpacity ();
+				SetOpacity();
 			else if (e.PropertyName == Image.AspectProperty.PropertyName)
-				SetAspect ();
+				SetAspect();
 			else if (e.PropertyName == Image.IsAnimationPlayingProperty.PropertyName)
-				StartStopAnimation ();
+				StartStopAnimation();
 		}
 
 		public override CGSize SizeThatFits(CGSize size)
 		{
 			if (Control != null && Control.Image == null && _imageAnimation != null)
 			{
-				return new CoreGraphics.CGSize (_imageAnimation.Width, _imageAnimation.Height);
+				return new CoreGraphics.CGSize(_imageAnimation.Width, _imageAnimation.Height);
 			}
 
-			return base.SizeThatFits (size);
+			return base.SizeThatFits(size);
 		}
 
 		void ClearImageData()
@@ -109,7 +109,7 @@ namespace Xamarin.Forms.Platform.iOS
 			if (Control != null)
 			{
 				Control.Image = null;
-				ClearAnimationData ();
+				ClearAnimationData();
 			}
 		}
 
@@ -121,14 +121,14 @@ namespace Xamarin.Forms.Platform.iOS
 				{
 					animation.Clear(Control);
 				}
-				animation.Dispose ();
+				animation.Dispose();
 				animation = null;
 			}
 		}
 
 		void ClearAnimationData()
 		{
-			ClearAnimationData (ref _imageAnimation);
+			ClearAnimationData(ref _imageAnimation);
 		}
 
 		void SetAspect()
@@ -154,8 +154,7 @@ namespace Xamarin.Forms.Platform.iOS
 			catch (Exception ex)
 			{
 				Log.Warning(nameof(ImageRenderer), "Error loading image: {0}", ex);
-			}
-			finally
+			} finally
 			{
 				((IImageController)Element)?.SetIsLoading(false);
 			}
@@ -179,7 +178,7 @@ namespace Xamarin.Forms.Platform.iOS
 				if (oldSource is FileImageSource && source is FileImageSource && ((FileImageSource)oldSource).File == ((FileImageSource)source).File)
 					return;
 
-				ClearAnimationData ();
+				ClearAnimationData();
 			}
 
 			IImageSourceHandlerEx handler;
@@ -187,26 +186,26 @@ namespace Xamarin.Forms.Platform.iOS
 			Element.SetIsLoading(true);
 
 			if (source != null &&
-			    (handler = Internals.Registrar.Registered.GetHandlerForObject<IImageSourceHandlerEx>(source)) != null)
+				(handler = Internals.Registrar.Registered.GetHandlerForObject<IImageSourceHandlerEx>(source)) != null)
 			{
 				UIImage uiimage = null;
 				ImageAnimation animation = null;
 				try
 				{
-					if (!Element.IsSet (Image.AnimationPlayBehaviorProperty) && !Element.IsSet (Image.IsAnimationPlayingProperty))
-						uiimage = await handler.LoadImageAsync (source, scale: (float)UIScreen.MainScreen.Scale);
+					if (!Element.IsSet(Image.AnimationPlayBehaviorProperty) && !Element.IsSet(Image.IsAnimationPlayingProperty))
+						uiimage = await handler.LoadImageAsync(source, scale: (float)UIScreen.MainScreen.Scale);
 					else
-						animation = await handler.LoadImageAnimationAsync (source, scale: (float)UIScreen.MainScreen.Scale);
+						animation = await handler.LoadImageAnimationAsync(source, scale: (float)UIScreen.MainScreen.Scale);
 				}
 				catch (OperationCanceledException)
 				{
 					uiimage = null;
-					ClearAnimationData (ref animation);
+					ClearAnimationData(ref animation);
 				}
 
 				if (_isDisposed)
 				{
-					ClearAnimationData (ref animation);
+					ClearAnimationData(ref animation);
 					return;
 				}
 
@@ -218,7 +217,7 @@ namespace Xamarin.Forms.Platform.iOS
 					else if (animation != null)
 					{
 						_imageAnimation = animation;
-						if ((Image.ImagePlayBehavior)Element.GetValue (Image.AnimationPlayBehaviorProperty) == Image.ImagePlayBehavior.OnLoad)
+						if ((Image.ImagePlayBehavior)Element.GetValue(Image.AnimationPlayBehaviorProperty) == Image.ImagePlayBehavior.OnLoad)
 							_imageAnimation.Start(Control);
 						else
 							_imageAnimation.Start(Control, true);
@@ -229,7 +228,7 @@ namespace Xamarin.Forms.Platform.iOS
 			}
 			else
 			{
-				ClearImageData ();
+				ClearImageData();
 			}
 
 			Element.SetIsLoading(false);
@@ -283,7 +282,7 @@ namespace Xamarin.Forms.Platform.iOS
 			Clear(imageView);
 			if (_animation != null)
 			{
-				imageView.Layer.AddAnimation (_animation, "ImageRenderLayerAnimation");
+				imageView.Layer.AddAnimation(_animation, "ImageRenderLayerAnimation");
 				if (paused)
 					Pause(imageView);
 				else
@@ -304,12 +303,12 @@ namespace Xamarin.Forms.Platform.iOS
 		public void Stop(UIImageView imageView)
 		{
 			// Reset to the begining of the animation in paused mode.
-			Start (imageView, true);
+			Start(imageView, true);
 		}
 
 		public void Clear(UIImageView imageView)
 		{
-			imageView.Layer.RemoveAnimation ("ImageRenderLayerAnimation");
+			imageView.Layer.RemoveAnimation("ImageRenderLayerAnimation");
 		}
 
 		protected virtual void Dispose(bool disposing)
@@ -319,7 +318,7 @@ namespace Xamarin.Forms.Platform.iOS
 
 			if (_animation != null)
 			{
-				_animation.Dispose ();
+				_animation.Dispose();
 				_animation = null;
 			}
 
@@ -328,7 +327,7 @@ namespace Xamarin.Forms.Platform.iOS
 
 		public void Dispose()
 		{
-			Dispose (true);
+			Dispose(true);
 		}
 	}
 
@@ -366,15 +365,15 @@ namespace Xamarin.Forms.Platform.iOS
 
 				double delayTime = 0.1f;
 
-				var imageProperties = imageSource.GetProperties (index, null);
+				var imageProperties = imageSource.GetProperties(index, null);
 				using (var gifImageProperties = imageProperties?.Dictionary[ImageIO.CGImageProperties.GIFDictionary])
-				using (var unclampedDelayTimeValue = gifImageProperties?.ValueForKey (ImageIO.CGImageProperties.GIFUnclampedDelayTime))
-				using (var delayTimeValue = gifImageProperties?.ValueForKey (ImageIO.CGImageProperties.GIFDelayTime))
+				using (var unclampedDelayTimeValue = gifImageProperties?.ValueForKey(ImageIO.CGImageProperties.GIFUnclampedDelayTime))
+				using (var delayTimeValue = gifImageProperties?.ValueForKey(ImageIO.CGImageProperties.GIFDelayTime))
 				{
 					if (unclampedDelayTimeValue != null)
-						double.TryParse (unclampedDelayTimeValue.ToString (), out delayTime);
+						double.TryParse(unclampedDelayTimeValue.ToString(), out delayTime);
 					else if (delayTimeValue != null)
-						double.TryParse (delayTimeValue.ToString (), out delayTime);
+						double.TryParse(delayTimeValue.ToString(), out delayTime);
 
 					if (delayTime < 0.01f)
 						delayTime = 0.01f;
@@ -383,16 +382,16 @@ namespace Xamarin.Forms.Platform.iOS
 					{
 						if (image != null)
 						{
-							Width = Math.Max (Width, (int)image.Width);
-							Height = Math.Max (Height, (int)image.Height);
+							Width = Math.Max(Width, (int)image.Width);
+							Height = Math.Max(Height, (int)image.Height);
 
 							if (_keyFrames[index] != null)
 							{
-								_keyFrames[index].Dispose ();
+								_keyFrames[index].Dispose();
 								_keyFrames[index] = null;
 							}
 
-							_keyFrames[index] = NSObject.FromObject (image);
+							_keyFrames[index] = NSObject.FromObject(image);
 							_delayTimes[index] = delayTime;
 							_totalAnimationTime += delayTime;
 						}
@@ -412,7 +411,7 @@ namespace Xamarin.Forms.Platform.iOS
 
 					if (_keyTimes[i] != null)
 					{
-						_keyTimes[i].Dispose ();
+						_keyTimes[i].Dispose();
 						_keyTimes[i] = null;
 					}
 
@@ -435,13 +434,13 @@ namespace Xamarin.Forms.Platform.iOS
 				{
 					if (_keyFrames[i] != null)
 					{
-						_keyFrames[i].Dispose ();
+						_keyFrames[i].Dispose();
 						_keyFrames[i] = null;
 					}
 
 					if (_keyTimes[i] != null)
 					{
-						_keyTimes[i].Dispose ();
+						_keyTimes[i].Dispose();
 						_keyTimes[i] = null;
 					}
 				}
@@ -464,25 +463,25 @@ namespace Xamarin.Forms.Platform.iOS
 			if (imageCount <= 0)
 				return null;
 
-			using (var imageData = new ImageDataHelper (imageCount))
+			using (var imageData = new ImageDataHelper(imageCount))
 			{
 				if (imageSource.TypeIdentifier == "com.compuserve.gif")
 				{
-					var imageProperties = imageSource.GetProperties (null);
+					var imageProperties = imageSource.GetProperties(null);
 					using (var gifImageProperties = imageProperties?.Dictionary[ImageIO.CGImageProperties.GIFDictionary])
-					using (var repeatCountValue = gifImageProperties?.ValueForKey (ImageIO.CGImageProperties.GIFLoopCount))
+					using (var repeatCountValue = gifImageProperties?.ValueForKey(ImageIO.CGImageProperties.GIFLoopCount))
 					{
 						if (repeatCountValue != null)
-							float.TryParse (repeatCountValue.ToString (), out repeatCount);
+							float.TryParse(repeatCountValue.ToString(), out repeatCount);
 					}
 				}
 
 				for (int i = 0; i < imageCount; i++)
 				{
-					imageData.AddFrameData (i, imageSource);
+					imageData.AddFrameData(i, imageSource);
 				}
 
-				var keyFrameAnimation = imageData.CreateKeyFrameAnimation ();
+				var keyFrameAnimation = imageData.CreateKeyFrameAnimation();
 				if (keyFrameAnimation != null)
 				{
 					keyFrameAnimation.CalculationMode = CAAnimation.AnimationDiscrete;
@@ -496,7 +495,7 @@ namespace Xamarin.Forms.Platform.iOS
 						keyFrameAnimation.KeyTimes = null;
 					}
 
-					animation = new ImageAnimation (keyFrameAnimation, imageData.Width, imageData.Height);
+					animation = new ImageAnimation(keyFrameAnimation, imageData.Width, imageData.Height);
 				}
 			}
 
@@ -504,12 +503,14 @@ namespace Xamarin.Forms.Platform.iOS
 		}
 	}
 
-	public interface IImageSourceHandler : IRegisterable {
-		Task<UIImage> LoadImageAsync(ImageSource imagesource, CancellationToken cancelationToken = default (CancellationToken), float scale = 1);
+	public interface IImageSourceHandler : IRegisterable
+	{
+		Task<UIImage> LoadImageAsync(ImageSource imagesource, CancellationToken cancelationToken = default(CancellationToken), float scale = 1);
 	}
 
-	public interface IImageSourceHandlerEx : IImageSourceHandler {
-		Task<ImageAnimation> LoadImageAnimationAsync(ImageSource imagesource, CancellationToken cancelationToken = default (CancellationToken), float scale = 1);
+	public interface IImageSourceHandlerEx : IImageSourceHandler
+	{
+		Task<ImageAnimation> LoadImageAnimationAsync(ImageSource imagesource, CancellationToken cancelationToken = default(CancellationToken), float scale = 1);
 	}
 
 	public sealed class FileImageSourceHandler : IImageSourceHandlerEx
@@ -530,26 +531,26 @@ namespace Xamarin.Forms.Platform.iOS
 			return Task.FromResult(image);
 		}
 
-		public Task<ImageAnimation> LoadImageAnimationAsync(ImageSource imagesource, CancellationToken cancelationToken = default (CancellationToken), float scale = 1)
+		public Task<ImageAnimation> LoadImageAnimationAsync(ImageSource imagesource, CancellationToken cancelationToken = default(CancellationToken), float scale = 1)
 		{
 			ImageAnimation animation = null;
 			var fileSoure = imagesource as FileImageSource;
 
 			var file = fileSoure?.File;
-			if (!string.IsNullOrEmpty (file) && File.Exists(file))
+			if (!string.IsNullOrEmpty(file) && File.Exists(file))
 			{
-				using (var parsedImageSource = CGImageSource.FromUrl (NSUrl.CreateFileUrl (file, null)))
+				using (var parsedImageSource = CGImageSource.FromUrl(NSUrl.CreateFileUrl(file, null)))
 				{
-					animation = ImageAnimationHelper.CreateAnimationFromImageSource (parsedImageSource);
+					animation = ImageAnimationHelper.CreateAnimationFromImageSource(parsedImageSource);
 				}
 			}
 
 			if (animation == null)
 			{
-				Log.Warning (nameof (FileImageSourceHandler), "Could not find image: {0}", imagesource);
+				Log.Warning(nameof(FileImageSourceHandler), "Could not find image: {0}", imagesource);
 			}
 
-			return Task.FromResult (animation);
+			return Task.FromResult(animation);
 		}
 	}
 
@@ -576,7 +577,7 @@ namespace Xamarin.Forms.Platform.iOS
 			return image;
 		}
 
-		public Task<ImageAnimation> LoadImageAnimationAsync(ImageSource imagesource, CancellationToken cancelationToken = default (CancellationToken), float scale = 1)
+		public Task<ImageAnimation> LoadImageAnimationAsync(ImageSource imagesource, CancellationToken cancelationToken = default(CancellationToken), float scale = 1)
 		{
 			return null;
 		}
@@ -605,7 +606,7 @@ namespace Xamarin.Forms.Platform.iOS
 			return image;
 		}
 
-		public Task<ImageAnimation> LoadImageAnimationAsync(ImageSource imagesource, CancellationToken cancelationToken = default (CancellationToken), float scale = 1)
+		public Task<ImageAnimation> LoadImageAnimationAsync(ImageSource imagesource, CancellationToken cancelationToken = default(CancellationToken), float scale = 1)
 		{
 			return null;
 		}

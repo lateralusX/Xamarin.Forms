@@ -9,32 +9,63 @@ namespace Xamarin.Forms.Platform.Android
 
 	internal static class ImageViewExtensions
 	{
-		public static async Task<AnimationDrawable> UpdateAnimation(this AImageView imageView, Image newImage, Image previousImage = null)
+		internal static void Reset(this AnimationDrawable animation)
 		{
-			var result = await InternalUpdateBitmap(imageView, newImage, previousImage, true);
-			result.Item1?.Dispose();
-
-			return result.Item2;
+			if (!animation.IsDisposed())
+			{
+				animation.Stop();
+				int frameCount = animation.NumberOfFrames;
+				for (int i = 0; i < frameCount; i++)
+				{
+					var currentFrame = animation.GetFrame(i);
+					if (currentFrame is BitmapDrawable bitmapDrawable)
+					{
+						var bitmap = bitmapDrawable.Bitmap;
+						if (bitmap != null)
+						{
+							if (!bitmap.IsRecycled)
+							{
+								bitmap.Recycle();
+							}
+							bitmap.Dispose();
+							bitmap = null;
+						}
+						bitmapDrawable.Dispose();
+						bitmapDrawable = null;
+					}
+					currentFrame = null;
+				}
+				animation = null;
+			}
 		}
 
-		public static async Task UpdateBitmap(this AImageView imageView, Image newImage, Image previousImage = null)
+		internal static void Reset(this AImageView imageView)
 		{
-			var result = await InternalUpdateBitmap(imageView, newImage, previousImage, false);
-			result.Item1?.Dispose();
-			result.Item2?.Dispose();
+			if (!imageView.IsDisposed())
+			{
+				if (imageView.Drawable is AnimationDrawable animation)
+				{
+					imageView.SetImageDrawable(null);
+					animation.Reset();
+					animation.Dispose();
+					animation = null;
+				}
+
+				imageView.SetImageResource(global::Android.Resource.Color.Transparent);
+			}
 		}
 
 		// TODO hartez 2017/04/07 09:33:03 Review this again, not sure it's handling the transition from previousImage to 'null' newImage correctly
-		internal static async Task<Tuple<Bitmap,AnimationDrawable>> InternalUpdateBitmap(AImageView imageView, Image newImage, Image previousImage, bool useAnimation)
+		public static async Task UpdateBitmap(this AImageView imageView, Image newImage, Image previousImage = null)
 		{
 			if (imageView == null || imageView.IsDisposed())
-				return new Tuple<Bitmap, AnimationDrawable>(null,null);
+				return;
 
 			if (Device.IsInvokeRequired)
 				throw new InvalidOperationException("Image Bitmap must not be updated from background thread");
 
 			if (previousImage != null && Equals(previousImage.Source, newImage.Source))
-				return new Tuple<Bitmap, AnimationDrawable>(null,null);
+				return;
 
 			var imageController = newImage as IImageController;
 
@@ -42,12 +73,13 @@ namespace Xamarin.Forms.Platform.Android
 
 			(imageView as IImageRendererController)?.SkipInvalidate();
 
-			imageView.SetImageResource(global::Android.Resource.Color.Transparent);
+			imageView.Reset();
 
 			ImageSource source = newImage?.Source;
 			Bitmap bitmap = null;
 			AnimationDrawable animation = null;
 			IImageSourceHandlerEx handler;
+			bool useAnimation = newImage.IsSet(Image.AnimationPlayBehaviorProperty) || newImage.IsSet(Image.IsAnimationPlayingProperty);
 
 			if (source != null && (handler = Internals.Registrar.Registered.GetHandlerForObject<IImageSourceHandlerEx>(source)) != null)
 			{
@@ -64,30 +96,31 @@ namespace Xamarin.Forms.Platform.Android
 				}
 			}
 
-			if (newImage == null || !Equals(newImage.Source, source))
+			if (newImage == null || !Equals(newImage.Source, source) || imageView.IsDisposed())
 			{
 				bitmap?.Dispose();
+				animation?.Reset();
 				animation?.Dispose();
-				new Tuple<Bitmap, AnimationDrawable>(null, null);
+				return;
 			}
 
-			if (!imageView.IsDisposed())
+			if (bitmap == null && animation == null && source is FileImageSource)
 			{
-				if (bitmap == null && animation == null && source is FileImageSource)
-					imageView.SetImageResource(ResourceManager.GetDrawableByName(((FileImageSource)source).File));
-				else
-				{
-					if (bitmap != null)
-						imageView.SetImageBitmap(bitmap);
-					else if (animation != null)
-						imageView.SetImageDrawable(animation);
-				}
+				imageView.SetImageResource(ResourceManager.GetDrawableByName(((FileImageSource)source).File));
 			}
-
+			else if (bitmap != null && animation == null)
+			{
+				imageView.SetImageBitmap(bitmap);
+			}
+			else if (animation != null && bitmap == null)
+			{
+				imageView.SetImageDrawable(animation);
+				if ((Image.ImagePlayBehavior)newImage.GetValue(Image.AnimationPlayBehaviorProperty) == Image.ImagePlayBehavior.OnLoad)
+					animation.Start();
+			}
+			
 			imageController?.SetIsLoading(false);
 			((IVisualElementController)newImage).NativeSizeChanged();
-
-			return new Tuple<Bitmap, AnimationDrawable>(bitmap, animation);
 		}
 	}
 }

@@ -28,33 +28,33 @@ namespace Xamarin.Forms.Controls.Issues
 			var animateImageOnLoadLabel = new Label { Text = "AnimationPlayBehavior = Image.ImagePlayBehavior.OnLoad" };
 			_animateImageOnLoad = new Image();
 			_animateImageOnLoad.AnimationPlayBehavior = Image.ImagePlayBehavior.OnLoad;
-			_animateImageOnLoad.Source = "ie-retro.gif";
+			_animateImageOnLoad.Source = "ie_retro.gif";
 
 			var animateImageNoneLabel = new Label { Text = "AnimationPlayBehavior = Image.ImagePlayBehavior.None" };
-			_animateImageNone = new Image ();
+			_animateImageNone = new Image();
 			_animateImageNone.AnimationPlayBehavior = Image.ImagePlayBehavior.None;
-			_animateImageNone.Source = "ie-retro.gif";
+			_animateImageNone.Source = "ie_retro.gif";
 
-			_startStop = new Button { Text = "StartAnimation" };
+			_startStop = new Button { Text = "Start Animation" };
 			_startStop.Clicked += (object sender, EventArgs e) => {
 				if (_start)
 				{
 					if (!_animateImageOnLoad.IsAnimationPlaying)
-						_animateImageOnLoad.StartAnimation ();
+						_animateImageOnLoad.StartAnimation();
 					if (!_animateImageNone.IsAnimationPlaying)
-						_animateImageNone.StartAnimation ();
+						_animateImageNone.StartAnimation();
 
-					_startStop.Text = "StopAnimation";
+					_startStop.Text = "Stop Animation";
 					_start = false;
 				}
 				else
 				{
 					if (_animateImageOnLoad.IsAnimationPlaying)
-						_animateImageOnLoad.StopAnimation ();
+						_animateImageOnLoad.StopAnimation();
 					if (_animateImageNone.IsAnimationPlaying)
-						_animateImageNone.StopAnimation ();
+						_animateImageNone.StopAnimation();
 
-					_startStop.Text = "StartAnimation";
+					_startStop.Text = "Start Animation";
 					_start = true;
 				}
 			};
