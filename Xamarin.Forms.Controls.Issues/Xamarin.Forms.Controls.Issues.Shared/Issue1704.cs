@@ -33,7 +33,7 @@ namespace Xamarin.Forms.Controls.Issues
 			var animateImageNoneLabel = new Label { Text = "AnimationPlayBehavior = Image.ImagePlayBehavior.None" };
 			_animateImageNone = new Image();
 			_animateImageNone.AnimationPlayBehavior = Image.ImagePlayBehavior.None;
-			_animateImageNone.Source = "ie_retro.gif";
+			_animateImageNone.Source = "sweden.gif";
 
 			_startStop = new Button { Text = "Start Animation" };
 			_startStop.Clicked += (object sender, EventArgs e) => {

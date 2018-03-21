@@ -30,10 +30,120 @@ namespace Xamarin.Forms.Platform.iOS
 		}
 	}
 
-	public class ImageRenderer : ViewRenderer<Image, UIImageView>
+	public class FormsCAKeyFrameAnimation : CAKeyFrameAnimation
+	{
+		public int Width { get; set; }
+
+		public int Height { get; set; }
+	}
+
+	public class FormsUIImageView : UIImageView
+	{
+		const string AnimationLayerName = "FormsUIImageViewAnimation";
+		FormsCAKeyFrameAnimation _animation;
+		bool _autoPlay;
+
+		public FormsUIImageView(CGRect frame) : base(frame)
+		{
+			;
+		}
+
+		public override CGSize SizeThatFits(CGSize size)
+		{
+			if (Image == null && Animation != null)
+			{
+				return new CoreGraphics.CGSize(Animation.Width, Animation.Height);
+			}
+
+			return base.SizeThatFits(size);
+		}
+
+		public bool AutoPlay {
+			get { return _autoPlay; }
+			set {
+				_autoPlay = value;
+				if (_animation != null)
+				{
+					Layer.Speed = _autoPlay ? 1.0f : 0.0f;
+				}
+			}
+		}
+
+		public FormsCAKeyFrameAnimation Animation
+		{
+			set {
+				if (_animation != null)
+				{
+					Layer.RemoveAnimation(AnimationLayerName);
+					_animation.Dispose();
+				}
+
+				_animation = value;
+				if (_animation != null)
+				{
+					Layer.AddAnimation(_animation, AnimationLayerName);
+					Layer.Speed = AutoPlay ? 1.0f : 0.0f;
+				}
+			}
+			get {
+				return _animation;
+			}
+		}
+
+		public override bool IsAnimating
+		{
+			get {
+				if (_animation != null)
+					return Layer.Speed != 0.0f;
+				else
+					return base.IsAnimating;
+			}
+		}
+
+		public override void StartAnimating()
+		{
+			if (_animation != null && Layer.Speed == 0.0f)
+			{
+				Layer.RemoveAnimation(AnimationLayerName);
+				Layer.AddAnimation(_animation, AnimationLayerName);
+				Layer.Speed = 1.0f;
+			}
+			else
+			{
+				base.StartAnimating();
+			}
+		}
+
+		public override void StopAnimating()
+		{
+			if (_animation != null && Layer.Speed != 0.0f)
+			{
+				Layer.RemoveAnimation(AnimationLayerName);
+				Layer.AddAnimation(_animation, AnimationLayerName);
+				Layer.Speed = 0.0f;
+			}
+			else
+			{
+				base.StopAnimating();
+			}
+		}
+
+		protected override void Dispose(bool disposing)
+		{
+			if (disposing && _animation != null)
+			{
+				Layer.RemoveAnimation(AnimationLayerName);
+				_animation.Dispose();
+				_animation = null;
+			}
+
+			base.Dispose(disposing);
+		}
+	}
+
+	public class ImageRenderer : ViewRenderer<Image, FormsUIImageView>
 	{
 		bool _isDisposed;
-		ImageAnimation _imageAnimation = null;
 
 		protected override void Dispose(bool disposing)
 		{
@@ -47,13 +157,6 @@ namespace Xamarin.Forms.Platform.iOS
 				{
 					oldUIImage.Dispose();
 				}
-
-				if (Control != null && _imageAnimation != null)
-				{
-					_imageAnimation.Clear(Control);
-					_imageAnimation.Dispose();
-					_imageAnimation = null;
-				}
 			}
 
 			_isDisposed = true;
@@ -65,7 +168,7 @@ namespace Xamarin.Forms.Platform.iOS
 		{
 			if (Control == null)
 			{
-				var imageView = new UIImageView(RectangleF.Empty);
+				var imageView = new FormsUIImageView(RectangleF.Empty);
 				imageView.ContentMode = UIViewContentMode.ScaleAspectFit;
 				imageView.ClipsToBounds = true;
 				SetNativeControl(imageView);
@@ -92,43 +195,6 @@ namespace Xamarin.Forms.Platform.iOS
 				SetAspect();
 			else if (e.PropertyName == Image.IsAnimationPlayingProperty.PropertyName)
 				StartStopAnimation();
-		}
-
-		public override CGSize SizeThatFits(CGSize size)
-		{
-			if (Control != null && Control.Image == null && _imageAnimation != null)
-			{
-				return new CoreGraphics.CGSize(_imageAnimation.Width, _imageAnimation.Height);
-			}
-
-			return base.SizeThatFits(size);
-		}
-
-		void ClearImageData()
-		{
-			if (Control != null)
-			{
-				Control.Image = null;
-				ClearAnimationData();
-			}
-		}
-
-		void ClearAnimationData(ref ImageAnimation animation)
-		{
-			if (animation != null)
-			{
-				if (Control != null)
-				{
-					animation.Clear(Control);
-				}
-				animation.Dispose();
-				animation = null;
-			}
-		}
-
-		void ClearAnimationData()
-		{
-			ClearAnimationData(ref _imageAnimation);
 		}
 
 		void SetAspect()
@@ -178,7 +244,8 @@ namespace Xamarin.Forms.Platform.iOS
 				if (oldSource is FileImageSource && source is FileImageSource && ((FileImageSource)oldSource).File == ((FileImageSource)source).File)
 					return;
 
-				ClearAnimationData();
+				Control.Image = null;
+				Control.Animation = null;
 			}
 
 			IImageSourceHandlerEx handler;
@@ -189,7 +256,7 @@ namespace Xamarin.Forms.Platform.iOS
 				(handler = Internals.Registrar.Registered.GetHandlerForObject<IImageSourceHandlerEx>(source)) != null)
 			{
 				UIImage uiimage = null;
-				ImageAnimation animation = null;
+				FormsCAKeyFrameAnimation animation = null;
 				try
 				{
 					if (!Element.IsSet(Image.AnimationPlayBehaviorProperty) && !Element.IsSet(Image.IsAnimationPlayingProperty))
@@ -200,12 +267,15 @@ namespace Xamarin.Forms.Platform.iOS
 				catch (OperationCanceledException)
 				{
 					uiimage = null;
-					ClearAnimationData(ref animation);
+					animation = null;
 				}
 
 				if (_isDisposed)
 				{
-					ClearAnimationData(ref animation);
+					uiimage?.Dispose();
+					uiimage = null;
+					animation?.Dispose();
+					animation = null;
 					return;
 				}
 
@@ -216,11 +286,8 @@ namespace Xamarin.Forms.Platform.iOS
 						imageView.Image = uiimage;
 					else if (animation != null)
 					{
-						_imageAnimation = animation;
-						if ((Image.ImagePlayBehavior)Element.GetValue(Image.AnimationPlayBehaviorProperty) == Image.ImagePlayBehavior.OnLoad)
-							_imageAnimation.Start(Control);
-						else
-							_imageAnimation.Start(Control, true);
+						imageView.AutoPlay = ((Image.ImagePlayBehavior)Element.GetValue(Image.AnimationPlayBehaviorProperty) == Image.ImagePlayBehavior.OnLoad);
+						imageView.Animation = animation;
 					}
 				}
 
@@ -228,7 +295,8 @@ namespace Xamarin.Forms.Platform.iOS
 			}
 			else
 			{
-				ClearImageData();
+				Control.Image = null;
+				Control.Animation = null; 
 			}
 
 			Element.SetIsLoading(false);
@@ -246,7 +314,7 @@ namespace Xamarin.Forms.Platform.iOS
 
 		void StartStopAnimation()
 		{
-			if (_isDisposed || Element == null || Control == null || _imageAnimation == null)
+			if (_isDisposed || Element == null || Control == null || Control.Animation == null)
 			{
 				return;
 			}
@@ -254,83 +322,13 @@ namespace Xamarin.Forms.Platform.iOS
 			if (Element.IsLoading)
 				return;
 
-			if (Element.IsAnimationPlaying)
-				_imageAnimation.Start(Control);
-			else
-				_imageAnimation.Stop(Control);
+			if (Element.IsAnimationPlaying && !Control.IsAnimating)
+				Control.StartAnimating();
+			else if (!Element.IsAnimationPlaying && Control.IsAnimating)
+				Control.StopAnimating();
 		}
 	}
-
-	public class ImageAnimation : IDisposable
-	{
-		CAKeyFrameAnimation _animation;
-		bool _disposed = false;
-
-		public ImageAnimation(CAKeyFrameAnimation animation, int width, int height)
-		{
-			_animation = animation;
-			Width = width;
-			Height = height;
-		}
-
-		public int Width { get; set; }
-
-		public int Height { get; set; }
-
-		public void Start(UIImageView imageView, bool paused = false)
-		{
-			Clear(imageView);
-			if (_animation != null)
-			{
-				imageView.Layer.AddAnimation(_animation, "ImageRenderLayerAnimation");
-				if (paused)
-					Pause(imageView);
-				else
-					Resume(imageView);
-			}
-		}
-
-		public void Pause(UIImageView imageView)
-		{
-			imageView.Layer.Speed = 0.0f;
-		}
-
-		public void Resume(UIImageView imageView)
-		{
-			imageView.Layer.Speed = 1.0f;
-		}
-
-		public void Stop(UIImageView imageView)
-		{
-			// Reset to the begining of the animation in paused mode.
-			Start(imageView, true);
-		}
-
-		public void Clear(UIImageView imageView)
-		{
-			imageView.Layer.RemoveAnimation("ImageRenderLayerAnimation");
-		}
-
-		protected virtual void Dispose(bool disposing)
-		{
-			if (_disposed)
-				return;
-
-			if (_animation != null)
-			{
-				_animation.Dispose();
-				_animation = null;
-			}
-
-			_disposed = true;
-		}
-
-		public void Dispose()
-		{
-			Dispose(true);
-		}
-	}
-
+	
 	public class ImageAnimationHelper
 	{
 		protected class ImageDataHelper : IDisposable
@@ -399,7 +397,7 @@ namespace Xamarin.Forms.Platform.iOS
 				}
 			}
 
-			public CAKeyFrameAnimation CreateKeyFrameAnimation()
+			public FormsCAKeyFrameAnimation CreateKeyFrameAnimation()
 			{
 				if (_totalAnimationTime <= 0.0f)
 					return null;
@@ -418,7 +416,7 @@ namespace Xamarin.Forms.Platform.iOS
 					_keyTimes[i] = new NSNumber(currentTime);
 				}
 
-				return new CAKeyFrameAnimation {
+				return new FormsCAKeyFrameAnimation {
 					Values = _keyFrames,
 					KeyTimes = _keyTimes,
 					Duration = _totalAnimationTime
@@ -454,9 +452,9 @@ namespace Xamarin.Forms.Platform.iOS
 			}
 		}
 
-		static public ImageAnimation CreateAnimationFromImageSource(CGImageSource imageSource)
+		static public FormsCAKeyFrameAnimation CreateAnimationFromImageSource(CGImageSource imageSource)
 		{
-			ImageAnimation animation = null;
+			FormsCAKeyFrameAnimation animation = null;
 			float repeatCount = float.MaxValue;
 			var imageCount = imageSource.ImageCount;
 
@@ -481,21 +479,21 @@ namespace Xamarin.Forms.Platform.iOS
 					imageData.AddFrameData(i, imageSource);
 				}
 
-				var keyFrameAnimation = imageData.CreateKeyFrameAnimation();
-				if (keyFrameAnimation != null)
+				animation = imageData.CreateKeyFrameAnimation();
+				if (animation != null)
 				{
-					keyFrameAnimation.CalculationMode = CAAnimation.AnimationDiscrete;
-					keyFrameAnimation.RemovedOnCompletion = false;
-					keyFrameAnimation.KeyPath = "contents";
-					keyFrameAnimation.RepeatCount = repeatCount;
+					animation.CalculationMode = CAAnimation.AnimationDiscrete;
+					animation.RemovedOnCompletion = false;
+					animation.KeyPath = "contents";
+					animation.RepeatCount = repeatCount;
+					animation.Width = imageData.Width;
+					animation.Height = imageData.Height;
 
 					if (imageCount == 1)
 					{
-						keyFrameAnimation.Duration = double.MaxValue;
-						keyFrameAnimation.KeyTimes = null;
+						animation.Duration = double.MaxValue;
+						animation.KeyTimes = null;
 					}
-
-					animation = new ImageAnimation(keyFrameAnimation, imageData.Width, imageData.Height);
 				}
 			}
 
@@ -510,7 +508,7 @@ namespace Xamarin.Forms.Platform.iOS
 
 	public interface IImageSourceHandlerEx : IImageSourceHandler
 	{
-		Task<ImageAnimation> LoadImageAnimationAsync(ImageSource imagesource, CancellationToken cancelationToken = default(CancellationToken), float scale = 1);
+		Task<FormsCAKeyFrameAnimation> LoadImageAnimationAsync(ImageSource imagesource, CancellationToken cancelationToken = default(CancellationToken), float scale = 1);
 	}
 
 	public sealed class FileImageSourceHandler : IImageSourceHandlerEx
@@ -531,9 +529,9 @@ namespace Xamarin.Forms.Platform.iOS
 			return Task.FromResult(image);
 		}
 
-		public Task<ImageAnimation> LoadImageAnimationAsync(ImageSource imagesource, CancellationToken cancelationToken = default(CancellationToken), float scale = 1)
+		public Task<FormsCAKeyFrameAnimation> LoadImageAnimationAsync(ImageSource imagesource, CancellationToken cancelationToken = default(CancellationToken), float scale = 1)
 		{
-			ImageAnimation animation = null;
+			FormsCAKeyFrameAnimation animation = null;
 			var fileSoure = imagesource as FileImageSource;
 
 			var file = fileSoure?.File;
@@ -577,7 +575,7 @@ namespace Xamarin.Forms.Platform.iOS
 			return image;
 		}
 
-		public Task<ImageAnimation> LoadImageAnimationAsync(ImageSource imagesource, CancellationToken cancelationToken = default(CancellationToken), float scale = 1)
+		public Task<FormsCAKeyFrameAnimation> LoadImageAnimationAsync(ImageSource imagesource, CancellationToken cancelationToken = default(CancellationToken), float scale = 1)
 		{
 			return null;
 		}
@@ -606,7 +604,7 @@ namespace Xamarin.Forms.Platform.iOS
 			return image;
 		}
 
-		public Task<ImageAnimation> LoadImageAnimationAsync(ImageSource imagesource, CancellationToken cancelationToken = default(CancellationToken), float scale = 1)
+		public Task<FormsCAKeyFrameAnimation> LoadImageAnimationAsync(ImageSource imagesource, CancellationToken cancelationToken = default(CancellationToken), float scale = 1)
 		{
 			return null;
 		}

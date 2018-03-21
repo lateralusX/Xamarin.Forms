@@ -9,7 +9,7 @@ namespace Xamarin.Forms.Platform.Android
 
 	internal static class ImageViewExtensions
 	{
-		internal static void Reset(this AnimationDrawable animation)
+		public static void Reset(this AnimationDrawable animation)
 		{
 			if (!animation.IsDisposed())
 			{
@@ -39,7 +39,7 @@ namespace Xamarin.Forms.Platform.Android
 			}
 		}
 
-		internal static void Reset(this AImageView imageView)
+		public static void Reset(this AImageView imageView)
 		{
 			if (!imageView.IsDisposed())
 			{

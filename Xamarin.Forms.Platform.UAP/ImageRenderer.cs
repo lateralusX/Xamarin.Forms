@@ -85,19 +85,7 @@ namespace Xamarin.Forms.Platform.UWP
 			else if (e.PropertyName == Image.AspectProperty.PropertyName)
 				UpdateAspect();
 			else if (e.PropertyName == Image.IsAnimationPlayingProperty.PropertyName)
-			{
-				if (Control.Source is BitmapImage bitmapImage)
-				{
-					if (_nativeAnimationSupport)
-					{
-						if (Element.IsAnimationPlaying && !bitmapImage.IsPlaying)
-							bitmapImage.Play();
-						else if (!Element.IsAnimationPlaying && bitmapImage.IsPlaying)
-							bitmapImage.Stop();
-					}
-				}
-			}
-
+				StartStopAnimation();
 		}
 
 		static Stretch GetStretch(Aspect aspect)
@@ -116,12 +104,6 @@ namespace Xamarin.Forms.Platform.UWP
 
 		void OnImageOpened(object sender, RoutedEventArgs routedEventArgs)
 		{
-			if (Element.IsSet(Image.AnimationPlayBehaviorProperty))
-			{
-				if ((Image.ImagePlayBehavior)Element.GetValue(Image.AnimationPlayBehaviorProperty) == Image.ImagePlayBehavior.OnLoad)
-					Element.StartAnimation();
-			}
-
 			if (_measured)
 			{
 				RefreshImage();
@@ -211,7 +193,11 @@ namespace Xamarin.Forms.Platform.UWP
 					if (imagesource is BitmapImage bitmapImage)
 					{
 						if (_nativeAnimationSupport)
+						{
 							bitmapImage.AutoPlay = false;
+							if (Element.IsSet(Image.AnimationPlayBehaviorProperty) || Element.IsSet(Image.IsAnimationPlayingProperty))
+								bitmapImage.AutoPlay = ((Image.ImagePlayBehavior)Element.GetValue(Image.AnimationPlayBehaviorProperty) == Image.ImagePlayBehavior.OnLoad);
+						}
 					}
 
 					Control.Source = imagesource;
@@ -223,6 +209,28 @@ namespace Xamarin.Forms.Platform.UWP
 			{
 				Control.Source = null;
 				Element.SetIsLoading(false);
+			}
+		}
+
+		void StartStopAnimation()
+		{
+			if (_disposed || Element == null || Control == null)
+			{
+				return;
+			}
+
+			if (Element.IsLoading)
+				return;
+
+			if (Control.Source is BitmapImage bitmapImage)
+			{
+				if (_nativeAnimationSupport)
+				{
+					if (Element.IsAnimationPlaying && !bitmapImage.IsPlaying)
+						bitmapImage.Play();
+					else if (!Element.IsAnimationPlaying && bitmapImage.IsPlaying)
+						bitmapImage.Stop();
+				}
 			}
 		}
 	}
