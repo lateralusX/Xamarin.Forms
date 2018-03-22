@@ -33,12 +33,6 @@ namespace Xamarin.Forms.Platform.Android
 
 		public AnimationDrawable Animation { get { return _animation; } }
 
-		//protected override int DipToPixels(int dips)
-		//{
-		//	double px = dips * ((float)_metrics.DensityDpi / 160f);
-		//	return (int)Math.Floor(px);
-		//}
-
 		protected override Task<bool> AddBitmapAsync(int[] data, int width, int height, int duration)
 		{
 			Bitmap bitmap;
@@ -60,6 +54,10 @@ namespace Xamarin.Forms.Platform.Android
 				originalBitmap.Dispose();
 				originalBitmap = null;
 			}
+
+			// Frame delay compability adjustment in milliseconds.
+			if (duration <= 20)
+				duration = 100;
 
 			_animation.AddFrame(new BitmapDrawable(_context.Resources, bitmap), duration);
 			return Task.FromResult<bool>(true);
@@ -97,7 +95,11 @@ namespace Xamarin.Forms.Platform.Android
 
 			BitmapFactory.Options options = new BitmapFactory.Options();
 			options.InJustDecodeBounds = true;
-			BitmapFactory.DecodeResource(context.Resources, ResourceManager.GetDrawableByName(file), options);
+
+			if (!DecodeSynchronously)
+				await BitmapFactory.DecodeResourceAsync(context.Resources, ResourceManager.GetDrawableByName(file), options);
+			else
+				BitmapFactory.DecodeResource(context.Resources, ResourceManager.GetDrawableByName(file), options);
 
 			var decoder = new GIFDecoder(context, options.InDensity, options.InTargetDensity);
 			using (var stream = context.Resources.OpenRawResource(ResourceManager.GetDrawableByName(file)))

@@ -21,13 +21,14 @@ namespace Xamarin.Forms
 
 		public static readonly BindableProperty IsLoadingProperty = IsLoadingPropertyKey.BindableProperty;
 
-		public enum ImagePlayBehavior
+		public enum AnimationPlayBehaviorValue
 		{
 			None,
-			OnLoad
+			OnLoad,
+			OnStart
 		};
 
-		public static readonly BindableProperty AnimationPlayBehaviorProperty = BindableProperty.Create(nameof(AnimationPlayBehavior), typeof(ImagePlayBehavior), typeof(Image), ImagePlayBehavior.None);
+		public static readonly BindableProperty AnimationPlayBehaviorProperty = BindableProperty.Create(nameof(AnimationPlayBehavior), typeof(AnimationPlayBehaviorValue), typeof(Image), AnimationPlayBehaviorValue.None);
 
 		public static readonly BindableProperty IsAnimationPlayingProperty = BindableProperty.Create (nameof(IsAnimationPlaying), typeof (bool), typeof (Image), false);
 
@@ -67,20 +68,22 @@ namespace Xamarin.Forms
 			set { SetValue(SourceProperty, value); }
 		}
 
-		public ImagePlayBehavior AnimationPlayBehavior
+		public AnimationPlayBehaviorValue AnimationPlayBehavior
 		{
-			get { return (ImagePlayBehavior)GetValue(AnimationPlayBehaviorProperty); }
+			get { return (AnimationPlayBehaviorValue)GetValue(AnimationPlayBehaviorProperty); }
 			set { SetValue(AnimationPlayBehaviorProperty, value); }
 		}
 
 		public void StartAnimation()
 		{
-			SetValue(IsAnimationPlayingProperty, true);
+			if (AnimationPlayBehavior != AnimationPlayBehaviorValue.None)
+				SetValue(IsAnimationPlayingProperty, true);
 		}
 
 		public void StopAnimation()
 		{
-			SetValue (IsAnimationPlayingProperty, false);
+			if (AnimationPlayBehavior != AnimationPlayBehaviorValue.None)
+				SetValue (IsAnimationPlayingProperty, false);
 		}
 
 		protected override void OnBindingContextChanged()

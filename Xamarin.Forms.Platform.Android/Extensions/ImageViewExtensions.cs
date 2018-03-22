@@ -115,7 +115,7 @@ namespace Xamarin.Forms.Platform.Android
 			else if (animation != null && bitmap == null)
 			{
 				imageView.SetImageDrawable(animation);
-				if ((Image.ImagePlayBehavior)newImage.GetValue(Image.AnimationPlayBehaviorProperty) == Image.ImagePlayBehavior.OnLoad)
+				if ((Image.AnimationPlayBehaviorValue)newImage.GetValue(Image.AnimationPlayBehaviorProperty) == Image.AnimationPlayBehaviorValue.OnLoad)
 					animation.Start();
 			}
 			

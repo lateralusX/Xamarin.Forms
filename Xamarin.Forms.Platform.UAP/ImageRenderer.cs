@@ -196,7 +196,7 @@ namespace Xamarin.Forms.Platform.UWP
 						{
 							bitmapImage.AutoPlay = false;
 							if (Element.IsSet(Image.AnimationPlayBehaviorProperty) || Element.IsSet(Image.IsAnimationPlayingProperty))
-								bitmapImage.AutoPlay = ((Image.ImagePlayBehavior)Element.GetValue(Image.AnimationPlayBehaviorProperty) == Image.ImagePlayBehavior.OnLoad);
+								bitmapImage.AutoPlay = ((Image.AnimationPlayBehaviorValue)Element.GetValue(Image.AnimationPlayBehaviorProperty) == Image.AnimationPlayBehaviorValue.OnLoad);
 						}
 					}
 

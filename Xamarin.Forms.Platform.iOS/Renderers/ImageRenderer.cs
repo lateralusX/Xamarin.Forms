@@ -286,7 +286,7 @@ namespace Xamarin.Forms.Platform.iOS
 						imageView.Image = uiimage;
 					else if (animation != null)
 					{
-						imageView.AutoPlay = ((Image.ImagePlayBehavior)Element.GetValue(Image.AnimationPlayBehaviorProperty) == Image.ImagePlayBehavior.OnLoad);
+						imageView.AutoPlay = ((Image.AnimationPlayBehaviorValue)Element.GetValue(Image.AnimationPlayBehaviorProperty) == Image.AnimationPlayBehaviorValue.OnLoad);
 						imageView.Animation = animation;
 					}
 				}
@@ -346,7 +346,7 @@ namespace Xamarin.Forms.Platform.iOS
 					throw new ArgumentException();
 
 				_keyFrames = new NSObject[imageCount];
-				_keyTimes = new NSNumber[imageCount];
+				_keyTimes = new NSNumber[imageCount + 1];
 				_delayTimes = new double[imageCount];
 				_imageCount = (int)imageCount;
 				Width = 0;
@@ -371,10 +371,12 @@ namespace Xamarin.Forms.Platform.iOS
 					if (unclampedDelayTimeValue != null)
 						double.TryParse(unclampedDelayTimeValue.ToString(), out delayTime);
 					else if (delayTimeValue != null)
+					if (delayTimeValue != null)
 						double.TryParse(delayTimeValue.ToString(), out delayTime);
 
-					if (delayTime < 0.01f)
-						delayTime = 0.01f;
+					// Frame delay compability adjustment.
+					if (delayTime <= 0.02f)
+						delayTime = 0.1f;
 
 					using (var image = imageSource.CreateImage(index, null))
 					{
@@ -383,11 +385,8 @@ namespace Xamarin.Forms.Platform.iOS
 							Width = Math.Max(Width, (int)image.Width);
 							Height = Math.Max(Height, (int)image.Height);
 
-							if (_keyFrames[index] != null)
-							{
-								_keyFrames[index].Dispose();
-								_keyFrames[index] = null;
-							}
+							_keyFrames[index]?.Dispose();
+							_keyFrames[index] = null;
 
 							_keyFrames[index] = NSObject.FromObject(image);
 							_delayTimes[index] = delayTime;
@@ -405,16 +404,16 @@ namespace Xamarin.Forms.Platform.iOS
 				double currentTime = 0.0f;
 				for (int i = 0; i < _imageCount; i++)
 				{
-					currentTime += _delayTimes[i] / _totalAnimationTime;
-
-					if (_keyTimes[i] != null)
-					{
-						_keyTimes[i].Dispose();
-						_keyTimes[i] = null;
-					}
+					_keyTimes[i]?.Dispose();
+					_keyTimes[i] = null;
 
 					_keyTimes[i] = new NSNumber(currentTime);
+					currentTime += _delayTimes[i] / _totalAnimationTime;
 				}
+
+				// When using discrete animation there should be one more keytime
+				// than values, with 1.0f as value.
+				_keyTimes[_imageCount] = new NSNumber(1.0f);
 
 				return new FormsCAKeyFrameAnimation {
 					Values = _keyFrames,
@@ -430,18 +429,16 @@ namespace Xamarin.Forms.Platform.iOS
 
 				for (int i = 0; i < _imageCount; i++)
 				{
-					if (_keyFrames[i] != null)
-					{
-						_keyFrames[i].Dispose();
-						_keyFrames[i] = null;
-					}
+					_keyFrames[i]?.Dispose();
+					_keyFrames[i] = null;
 
-					if (_keyTimes[i] != null)
-					{
-						_keyTimes[i].Dispose();
-						_keyTimes[i] = null;
-					}
+					_keyTimes[i]?.Dispose();
+					_keyTimes[i] = null;
 				}
+
+				_keyTimes[_imageCount]?.Dispose();
+				_keyTimes[_imageCount] = null;
+				
 
 				_disposed = true;
 			}
@@ -452,7 +449,7 @@ namespace Xamarin.Forms.Platform.iOS
 			}
 		}
 
-		static public FormsCAKeyFrameAnimation CreateAnimationFromImageSource(CGImageSource imageSource)
+		static public FormsCAKeyFrameAnimation CreateAnimationFromCGImageSource(CGImageSource imageSource)
 		{
 			FormsCAKeyFrameAnimation animation = null;
 			float repeatCount = float.MaxValue;
@@ -471,6 +468,8 @@ namespace Xamarin.Forms.Platform.iOS
 					{
 						if (repeatCountValue != null)
 							float.TryParse(repeatCountValue.ToString(), out repeatCount);
+						if (repeatCount == 0)
+							repeatCount = float.MaxValue;
 					}
 				}
 
@@ -494,6 +493,63 @@ namespace Xamarin.Forms.Platform.iOS
 						animation.Duration = double.MaxValue;
 						animation.KeyTimes = null;
 					}
+				}
+			}
+
+			return animation;
+		}
+
+		static public async Task<FormsCAKeyFrameAnimation> CreateAnimationFromStreamImageSourceAsync(StreamImageSource imageSource, CancellationToken cancelationToken = default(CancellationToken))
+		{
+			FormsCAKeyFrameAnimation animation = null;
+
+			if (imageSource?.Stream != null)
+			{
+				using (var streamImage = await ((IStreamImageSource)imageSource).GetStreamAsync(cancelationToken).ConfigureAwait(false))
+				{
+					if (streamImage != null)
+					{
+						using (var parsedImageSource = CGImageSource.FromData(NSData.FromStream(streamImage)))
+						{
+							animation = ImageAnimationHelper.CreateAnimationFromCGImageSource(parsedImageSource);
+						}
+					}
+				}
+			}
+
+			return animation;
+		}
+
+		static public async Task<FormsCAKeyFrameAnimation> CreateAnimationFromUriImageSourceAsync(UriImageSource imageSource, CancellationToken cancelationToken = default(CancellationToken))
+		{
+			FormsCAKeyFrameAnimation animation = null;
+
+			if (imageSource?.Uri != null)
+			{
+				using (var streamImage = await imageSource.GetStreamAsync(cancelationToken).ConfigureAwait(false))
+				{
+					if (streamImage != null)
+					{
+						using (var parsedImageSource = CGImageSource.FromData(NSData.FromStream(streamImage)))
+						{
+							animation = ImageAnimationHelper.CreateAnimationFromCGImageSource(parsedImageSource);
+						}
+					}
+				}
+			}
+
+			return animation;
+		}
+
+		static public FormsCAKeyFrameAnimation CreateAnimationFromFileImageSource(FileImageSource imageSource)
+		{
+			FormsCAKeyFrameAnimation animation = null;
+			string file = imageSource?.File;
+			if (!string.IsNullOrEmpty(file))
+			{
+				using (var parsedImageSource = CGImageSource.FromUrl(NSUrl.CreateFileUrl(file, null)))
+				{
+					animation = ImageAnimationHelper.CreateAnimationFromCGImageSource(parsedImageSource);
 				}
 			}
 
@@ -531,18 +587,7 @@ namespace Xamarin.Forms.Platform.iOS
 
 		public Task<FormsCAKeyFrameAnimation> LoadImageAnimationAsync(ImageSource imagesource, CancellationToken cancelationToken = default(CancellationToken), float scale = 1)
 		{
-			FormsCAKeyFrameAnimation animation = null;
-			var fileSoure = imagesource as FileImageSource;
-
-			var file = fileSoure?.File;
-			if (!string.IsNullOrEmpty(file) && File.Exists(file))
-			{
-				using (var parsedImageSource = CGImageSource.FromUrl(NSUrl.CreateFileUrl(file, null)))
-				{
-					animation = ImageAnimationHelper.CreateAnimationFromImageSource(parsedImageSource);
-				}
-			}
-
+			FormsCAKeyFrameAnimation animation = ImageAnimationHelper.CreateAnimationFromFileImageSource(imagesource as FileImageSource);
 			if (animation == null)
 			{
 				Log.Warning(nameof(FileImageSourceHandler), "Could not find image: {0}", imagesource);
@@ -575,9 +620,15 @@ namespace Xamarin.Forms.Platform.iOS
 			return image;
 		}
 
-		public Task<FormsCAKeyFrameAnimation> LoadImageAnimationAsync(ImageSource imagesource, CancellationToken cancelationToken = default(CancellationToken), float scale = 1)
+		public async Task<FormsCAKeyFrameAnimation> LoadImageAnimationAsync(ImageSource imagesource, CancellationToken cancelationToken = default(CancellationToken), float scale = 1)
 		{
-			return null;
+			FormsCAKeyFrameAnimation animation = await ImageAnimationHelper.CreateAnimationFromStreamImageSourceAsync(imagesource as StreamImageSource, cancelationToken);
+			if (animation == null)
+			{
+				Log.Warning(nameof(FileImageSourceHandler), "Could not find image: {0}", imagesource);
+			}
+
+			return animation;
 		}
 	}
 
@@ -604,9 +655,15 @@ namespace Xamarin.Forms.Platform.iOS
 			return image;
 		}
 
-		public Task<FormsCAKeyFrameAnimation> LoadImageAnimationAsync(ImageSource imagesource, CancellationToken cancelationToken = default(CancellationToken), float scale = 1)
+		public async Task<FormsCAKeyFrameAnimation> LoadImageAnimationAsync(ImageSource imagesource, CancellationToken cancelationToken = default(CancellationToken), float scale = 1)
 		{
-			return null;
+			FormsCAKeyFrameAnimation animation = await ImageAnimationHelper.CreateAnimationFromUriImageSourceAsync(imagesource as UriImageSource, cancelationToken);
+			if (animation == null)
+			{
+				Log.Warning(nameof(FileImageSourceHandler), "Could not find image: {0}", imagesource);
+			}
+
+			return animation;
 		}
 	}
 }
