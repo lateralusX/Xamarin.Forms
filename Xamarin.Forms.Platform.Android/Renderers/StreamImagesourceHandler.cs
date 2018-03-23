@@ -49,8 +49,8 @@ namespace Xamarin.Forms.Platform.Android
 						stream.Seek(0, SeekOrigin.Begin);
 					}
 
-					var decoder = new GIFDecoder(context, sourceDensity, targetDensity);
-					await decoder.ReadGifAsync(stream);
+					var decoder = new GIFImageDecoder(context, sourceDensity, targetDensity);
+					await decoder.ParseGIFAsync(stream);
 
 					animation = decoder.Animation;
 				}

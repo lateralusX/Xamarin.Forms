@@ -36,8 +36,8 @@ namespace Xamarin.Forms.Platform.Android
 			{
 				using (Stream imageStream = await imageLoader.GetStreamAsync(cancelationToken).ConfigureAwait(false))
 				{
-					var decoder = new GIFDecoder(context, 1, 1);
-					await decoder.ReadGifAsync(imageStream);
+					var decoder = new GIFImageDecoder(context, 1, 1);
+					await decoder.ParseGIFAsync(imageStream);
 
 					animation = decoder.Animation;
 				}
