@@ -1,5 +1,6 @@
 ﻿using System.Threading.Tasks;
 using System.Diagnostics;
+using Xamarin.Forms.Internals;
 using Android.Content;
 using Android.Content.Res;
 using Android.Graphics;
@@ -8,7 +9,7 @@ using Android.Util;
 
 namespace Xamarin.Forms.Platform.Android
 {
-	class GIFImageDecoder : Xamarin.Forms.Internals.GIFDecoder
+	class GIFImageDecoder : GIFDecoder
 	{
 		readonly DisplayMetrics _metrics = Resources.System.DisplayMetrics;
 		Context _context;
@@ -27,34 +28,48 @@ namespace Xamarin.Forms.Platform.Android
 
 		public AnimationDrawable Animation { get { return _animation; } }
 
-		protected override Task<bool> AddBitmapAsync(int[] data, int width, int height, int delay)
+		protected override void StartParsing()
 		{
-			Bitmap bitmap;
-			bitmap = Bitmap.CreateBitmap(data, width, height, Bitmap.Config.Argb4444);
+			Debug.Assert(!_animation.IsRunning);
+			Debug.Assert(_animation.NumberOfFrames == 0);
+		}
 
-			if (_sourceDensity < _targetDensity)
+		protected override void AddBitmap(GIFHeader header, GIFBitmap gifBitmap)
+		{
+			if (gifBitmap.Data != null)
 			{
-				var originalBitmap = bitmap;
+				Bitmap bitmap;
+				bitmap = Bitmap.CreateBitmap(gifBitmap.Data, header.Width, header.Height, Bitmap.Config.Argb4444);
 
-				float scaleFactor = _targetDensity / _sourceDensity;
+				if (_sourceDensity < _targetDensity)
+				{
+					var originalBitmap = bitmap;
 
-				int scaledWidth = (int)(scaleFactor * width);
-				int scaledHeight = (int)(scaleFactor * height);
-				bitmap = Bitmap.CreateScaledBitmap(originalBitmap, scaledWidth, scaledHeight, true);
+					float scaleFactor = _targetDensity / _sourceDensity;
 
-				Debug.Assert(!originalBitmap.Equals(bitmap));
+					int scaledWidth = (int)(scaleFactor * header.Width);
+					int scaledHeight = (int)(scaleFactor * header.Height);
+					bitmap = Bitmap.CreateScaledBitmap(originalBitmap, scaledWidth, scaledHeight, true);
 
-				originalBitmap.Recycle();
-				originalBitmap.Dispose();
-				originalBitmap = null;
+					Debug.Assert(!originalBitmap.Equals(bitmap));
+
+					originalBitmap.Recycle();
+					originalBitmap.Dispose();
+					originalBitmap = null;
+				}
+
+				// Frame delay compability adjustment in milliseconds.
+				int delay = gifBitmap.Delay;
+				if (delay <= 20)
+					delay = 100;
+
+				_animation.AddFrame(new BitmapDrawable(_context.Resources, bitmap), delay);
 			}
+		}
 
-			// Frame delay compability adjustment in milliseconds.
-			if (delay <= 20)
-				delay = 100;
-
-			_animation.AddFrame(new BitmapDrawable(_context.Resources, bitmap), delay);
-			return Task.FromResult<bool>(true);
+		protected override void FinishedParsing()
+		{
+			Debug.Assert(!_animation.IsRunning);
 		}
 	}
 }

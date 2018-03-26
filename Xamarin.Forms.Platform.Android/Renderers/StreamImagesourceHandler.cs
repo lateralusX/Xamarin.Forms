@@ -50,7 +50,7 @@ namespace Xamarin.Forms.Platform.Android
 					}
 
 					var decoder = new GIFImageDecoder(context, sourceDensity, targetDensity);
-					await decoder.ParseGIFAsync(stream);
+					await decoder.ParseAsync(stream);
 
 					animation = decoder.Animation;
 				}

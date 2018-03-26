@@ -53,9 +53,9 @@ namespace Xamarin.Forms.Platform.Android
 			using (var stream = context.Resources.OpenRawResource(ResourceManager.GetDrawableByName(file)))
 			{
 				if (!DecodeSynchronously)
-					await decoder.ParseGIFAsync(stream);
+					await decoder.ParseAsync(stream);
 				else
-					decoder.ParseGIFAsync(stream).Wait();
+					decoder.ParseAsync(stream).Wait();
 			}
 
 			return decoder.Animation;
