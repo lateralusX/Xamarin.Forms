@@ -180,7 +180,7 @@
     <Compile Include="Renderers\FormsTextView.cs" />
     <Compile Include="Renderers\FormsWebChromeClient.cs" />
     <Compile Include="Renderers\GenericAnimatorListener.cs" />
-    <Compile Include="Renderers\GIFImageDecoder.cs" />
+    <Compile Include="Renderers\AndroidGIFImageParser.cs" />
     <Compile Include="Renderers\IDescendantFocusToggler.cs" />
     <Compile Include="Renderers\IImageSourceHandler.cs" />
     <Compile Include="Renderers\ImageExtensions.cs" />

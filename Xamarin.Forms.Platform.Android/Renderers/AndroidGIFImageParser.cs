@@ -1,5 +1,4 @@
-﻿using System.Threading.Tasks;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using Xamarin.Forms.Internals;
 using Android.Content;
 using Android.Content.Res;
@@ -9,7 +8,7 @@ using Android.Util;
 
 namespace Xamarin.Forms.Platform.Android
 {
-	class GIFImageDecoder : GIFDecoder
+	class AndroidGIFImageParser : GIFImageParser
 	{
 		readonly DisplayMetrics _metrics = Resources.System.DisplayMetrics;
 		Context _context;
@@ -18,7 +17,7 @@ namespace Xamarin.Forms.Platform.Android
 
 		AnimationDrawable _animation = null;
 
-		public GIFImageDecoder(Context context, int sourceDensity, int targetDensity)
+		public AndroidGIFImageParser(Context context, int sourceDensity, int targetDensity)
 		{
 			_context = context;
 			_animation = new AnimationDrawable();
@@ -34,9 +33,9 @@ namespace Xamarin.Forms.Platform.Android
 			Debug.Assert(_animation.NumberOfFrames == 0);
 		}
 
-		protected override void AddBitmap(GIFHeader header, GIFBitmap gifBitmap)
+		protected override void AddBitmap(GIFHeader header, GIFBitmap gifBitmap, bool ignoreImageData)
 		{
-			if (gifBitmap.Data != null)
+			if (!ignoreImageData)
 			{
 				Bitmap bitmap;
 				bitmap = Bitmap.CreateBitmap(gifBitmap.Data, header.Width, header.Height, Bitmap.Config.Argb4444);

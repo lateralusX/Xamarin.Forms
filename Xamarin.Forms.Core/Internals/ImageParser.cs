@@ -270,6 +270,10 @@ namespace Xamarin.Forms.Internals
 					BackgroundColor = GlobalColorTable.Data[BackgroundColorIndex];
 				}
 			}
+			else
+			{
+				throw new GIFDecoderFormatException("Unknown GIF format type identifier: " + TypeIdentifier);
+			}
 		}
 	}
 
@@ -331,6 +335,8 @@ namespace Xamarin.Forms.Internals
 			public const int ApplicationExtensionBlock = 0xFF;
 		}
 
+		const string NetscapeApplicationExtensionID = "NETSCAPE2.0";
+
 		GIFHeader _header;
 
 		GIFBitmap(GIFHeader header)
@@ -375,15 +381,16 @@ namespace Xamarin.Forms.Internals
 		void ParseGraphicControlExtension(GIFDecoderStreamReader stream)
 		{
 			int blockSize = stream.Read();
-			Debug.Assert(blockSize == 4);
+			if (blockSize != 4)
+				throw new GIFDecoderFormatException("Invalid graphic control extension size.");
 
 			int flags = stream.Read();
 			SetDisposeMethod(flags);
 			SetDelay(stream.ReadShort());
 			SetTransparency(flags, stream.Read());
 
-			int blockTerminator = stream.Read();
-			Debug.Assert(blockTerminator == 0);
+			// Consume block terminator.
+			stream.Read();
 		}
 
 		async Task ParseNetscapeApplicationExtensionAsync(GIFDecoderStreamReader stream)
@@ -391,9 +398,8 @@ namespace Xamarin.Forms.Internals
 			int blockSize = await stream.ReadBlockAsync().ConfigureAwait(false);
 			while (blockSize > 0)
 			{
-				if (stream.CurrentBlockBuffer[0] == 1)
+				if (stream.CurrentBlockBuffer[0] == 1 && blockSize == 3)
 				{
-					Debug.Assert(blockSize >= 3);
 					LoopCount = (stream.CurrentBlockBuffer[2] << 8) | stream.CurrentBlockBuffer[1];
 				}
 				blockSize = await stream.ReadBlockAsync().ConfigureAwait(false);
@@ -403,11 +409,11 @@ namespace Xamarin.Forms.Internals
 		async Task ParseApplicationExtensionAsync(GIFDecoderStreamReader stream)
 		{
 			var blockSize = await stream.ReadBlockAsync().ConfigureAwait(false);
-			if (blockSize >= 11)
+			if (blockSize >= NetscapeApplicationExtensionID.Length)
 			{
 				var buffer = stream.CurrentBlockBuffer;
-				string identifier = System.Text.Encoding.UTF8.GetString(buffer, 0, 11);
-				if (identifier.Equals("NETSCAPE2.0", StringComparison.OrdinalIgnoreCase))
+				string identifier = System.Text.Encoding.UTF8.GetString(buffer, 0, NetscapeApplicationExtensionID.Length);
+				if (identifier.Equals(NetscapeApplicationExtensionID, StringComparison.OrdinalIgnoreCase))
 				{
 					await ParseNetscapeApplicationExtensionAsync(stream).ConfigureAwait(false);
 					return;
@@ -423,8 +429,7 @@ namespace Xamarin.Forms.Internals
 			ColorTable = _header.GlobalColorTable;
 
 			int flags = stream.Read();
-			bool localTable = UseLocalColorTable(flags);
-			if (localTable)
+			if (UseLocalColorTable(flags))
 			{
 				ColorTable = await GIFColorTable.CreateColorTableAsync(stream, LocalColorTableSize(flags)).ConfigureAwait(false);
 			}
@@ -433,23 +438,31 @@ namespace Xamarin.Forms.Internals
 			IsInterlaced = UseInterlace(flags);
 		}
 
-		async Task ParseImageDescriptorAsync(GIFDecoderStreamReader stream, GIFBitmapDecoder decoder, GIFBitmap previousBitmap, bool discardData)
+		async Task ParseImageDescriptorAsync(GIFDecoderStreamReader stream, GIFBitmapDecoder decoder, GIFBitmap previousBitmap, bool ignoreImageData)
 		{
 			await ParseGIFBitmapHeaderAsync(stream).ConfigureAwait(false);
 			if (IsTransparent)
 				ColorTable.SetTransparency(TransparencyIndex);
 
-			if (!discardData)
+			if (!ignoreImageData)
 			{
+				// Decode LZW data stream.
 				await decoder.DecodeAsync(stream, _header.Width, _header.Height).ConfigureAwait(false);
+
+				// Compose bitmap from decoded data stream.
 				decoder.Compose(_header, this, previousBitmap);
+
+				// Consume block terminator.
 				await stream.SkipBlockAsync().ConfigureAwait(false);
 			}
 			else
 			{
+				// Read pass variable length LZW data stream.
+				// First byte is LZW code size followed by data blocks repeated until block terminator.
+				stream.Read();
 				await stream.SkipBlockAsync().ConfigureAwait(false);
 			}
-
+			
 			if (IsTransparent)
 				ColorTable.ResetTransparency();
 		}
@@ -471,7 +484,7 @@ namespace Xamarin.Forms.Internals
 			}
 		}
 
-		public static async Task<GIFBitmap> CreateBitmapAsync(GIFDecoderStreamReader stream, GIFHeader header, GIFBitmapDecoder decoder, GIFBitmap previousBitmap, bool discardData = false)
+		public static async Task<GIFBitmap> CreateBitmapAsync(GIFDecoderStreamReader stream, GIFHeader header, GIFBitmapDecoder decoder, GIFBitmap previousBitmap, bool ignoreImageData = false)
 		{
 			GIFBitmap currentBitmap = null;
 			bool haveImage = false;
@@ -480,12 +493,18 @@ namespace Xamarin.Forms.Internals
 			while (!done)
 			{
 				int blockCode = stream.Read();
+				if (blockCode == -1)
+				{
+					currentBitmap = null;
+					break;
+				}
+
 				switch (blockCode)
 				{
 					case GIFBlockCodes.ImageSeparator:
 						if (currentBitmap == null)
 							currentBitmap = new GIFBitmap(header);
-						await currentBitmap.ParseImageDescriptorAsync(stream, decoder, previousBitmap, discardData).ConfigureAwait(false);
+						await currentBitmap.ParseImageDescriptorAsync(stream, decoder, previousBitmap, ignoreImageData).ConfigureAwait(false);
 						haveImage = true;
 						done = true;
 						break;
@@ -517,7 +536,7 @@ namespace Xamarin.Forms.Internals
 
 		const int DecoderStackSize = 4096;
 
-		void Initialize(int pixelCount)
+		void InitializeBuffers(int pixelCount)
 		{ 
 			if (_pixels == null || _pixels.Length < pixelCount)
 			{
@@ -626,6 +645,7 @@ namespace Xamarin.Forms.Internals
 					{
 						endBitmapIndex = startBitmapIndex + width;
 					}
+
 					int currentPixelIndex = sourceRow * bounds.Width;
 					while (currentBitmapIndex < endBitmapIndex)
 					{
@@ -646,7 +666,7 @@ namespace Xamarin.Forms.Internals
 		public async Task DecodeAsync(GIFDecoderStreamReader stream, int width, int height)
 		{
 			int pixelCount = width * height;
-			Initialize(pixelCount);
+			InitializeBuffers(pixelCount);
 
 			int nullCode = -1;
 			int inCode = nullCode;
@@ -765,13 +785,13 @@ namespace Xamarin.Forms.Internals
 		}
 	}
 
-	public abstract class GIFDecoder
+	public abstract class GIFImageParser
 	{
 		protected abstract void StartParsing();
-		protected abstract void AddBitmap(GIFHeader header, GIFBitmap bitmap);
+		protected abstract void AddBitmap(GIFHeader header, GIFBitmap bitmap, bool ignoreImageData);
 		protected abstract void FinishedParsing();
 
-		public async Task ParseAsync(Stream stream, bool skipTypeIdentifier = false, bool discardData = false)
+		public async Task ParseAsync(Stream stream, bool skipTypeIdentifier = false, bool ignoreImageData = false)
 		{
 			if (stream != null)
 			{
@@ -785,12 +805,12 @@ namespace Xamarin.Forms.Internals
 
 				GIFHeader header = await GIFHeader.CreateHeaderAsync(reader, skipTypeIdentifier).ConfigureAwait(false);
 
-				currentBitmap = await GIFBitmap.CreateBitmapAsync(reader, header, decoder, previousBitmap, discardData).ConfigureAwait(false);
+				currentBitmap = await GIFBitmap.CreateBitmapAsync(reader, header, decoder, previousBitmap, ignoreImageData).ConfigureAwait(false);
 				while (currentBitmap != null)
 				{
-					AddBitmap(header, currentBitmap);
+					AddBitmap(header, currentBitmap, ignoreImageData);
 					previousBitmap = currentBitmap;
-					currentBitmap = await GIFBitmap.CreateBitmapAsync(reader, header, decoder, previousBitmap, discardData).ConfigureAwait(false);
+					currentBitmap = await GIFBitmap.CreateBitmapAsync(reader, header, decoder, previousBitmap, ignoreImageData).ConfigureAwait(false);
 				}
 
 				FinishedParsing();
